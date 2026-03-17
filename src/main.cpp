@@ -203,6 +203,7 @@ inline uint16_t uiAccent()    { return M5Dial.Display.color565(92, 169, 255); }
 inline uint16_t uiSuccess()   { return M5Dial.Display.color565(58, 212, 152); }
 inline uint16_t uiDanger()    { return M5Dial.Display.color565(255, 107, 129); }
 
+<<<<<<< codex/improve-ui-design-and-responsiveness-lv3anu
 int menuRowHeight() {
   return constrain(SCR_H / 9, 24, 32);
 }
@@ -211,10 +212,17 @@ int menuVisibleSlots(int count) {
   int usableTop = SAFE_MARGIN + 24;
   int usableHeight = SCR_H - usableTop - SAFE_MARGIN;
   int dynamicRows = usableHeight / (menuRowHeight() + 4);
+=======
+int menuVisibleSlots(int count) {
+  int usableTop = SAFE_MARGIN + 24;
+  int usableHeight = SCR_H - usableTop - SAFE_MARGIN;
+  int dynamicRows = usableHeight / ROW_H;
+>>>>>>> main
   int capped = constrain(dynamicRows, 3, 6);
   return min(capped, count);
 }
 
+<<<<<<< codex/improve-ui-design-and-responsiveness-lv3anu
 void drawBackdrop() {
   for (int y = 0; y < SCR_H; y++) {
     uint8_t r = map(y, 0, SCR_H, 24, 18);
@@ -224,6 +232,8 @@ void drawBackdrop() {
   }
 }
 
+=======
+>>>>>>> main
 String fitLabel(const String& value, int maxWidth) {
   if (M5Dial.Display.textWidth(value) <= maxWidth) return value;
   String out = value;
@@ -240,6 +250,7 @@ void drawMenuHint(const char* text) {
   M5Dial.Display.drawString(text, CX, SCR_H - SAFE_MARGIN + 8);
 }
 
+<<<<<<< codex/improve-ui-design-and-responsiveness-lv3anu
 void drawMenuScrollDots(int count, int selected) {
   if (count <= 1) return;
   int dots = min(count, 6);
@@ -257,6 +268,10 @@ void drawMenuScrollDots(int count, int selected) {
 
 void drawMenuCardRow(int y, bool selected, const String& label, const String& rightText = "", uint16_t rightColor = 0) {
   int rowH = menuRowHeight();
+=======
+void drawMenuCardRow(int y, bool selected, const String& label, const String& rightText = "", uint16_t rightColor = 0) {
+  int rowH = 28;
+>>>>>>> main
   int rowW = SCR_W - SAFE_MARGIN * 2;
   int rowX = SAFE_MARGIN;
   uint16_t bg = selected ? uiPanelSoft() : uiPanel();
@@ -440,13 +455,21 @@ void drawScrollableMenu(Device* list, int count, int selected, const char* title
 
   for (int i = 0; i < visibleCount; i++) {
     int idx = start + i;
+<<<<<<< codex/improve-ui-design-and-responsiveness-lv3anu
     int y = startY + i * rowStep;
+=======
+    int y = startY + i * ROW_H;
+>>>>>>> main
 
     uint16_t stateColor = list[idx].state ? uiSuccess() : uiDanger();
     String stateText = list[idx].state ? "ON" : "OFF";
 
     if (list[idx].type == LIGHT && showBrightness) {
+<<<<<<< codex/improve-ui-design-and-responsiveness-lv3anu
       if (list[idx].brightness > 0) stateText += " " + String((list[idx].brightness * 100) / 255) + "%";
+=======
+      if (list[idx].brightness > 0) stateText += " " + String(list[idx].brightness) + "%";
+>>>>>>> main
     } else if (list[idx].type == BLIND) {
       stateText = list[idx].state ? "OPEN" : "CLOSED";
     }
@@ -456,7 +479,10 @@ void drawScrollableMenu(Device* list, int count, int selected, const char* title
     drawMenuCardRow(y, idx == selected, fitLabel(list[idx].name, labelWidth), stateText, stateColor);
   }
   drawMenuHint("Rotate • Press to open");
+<<<<<<< codex/improve-ui-design-and-responsiveness-lv3anu
   drawMenuScrollDots(count, selected);
+=======
+>>>>>>> main
 }
 // ===== Menus =====
 void drawCategories() {
@@ -465,12 +491,20 @@ void drawCategories() {
   drawHeader("Categories");
 
   int visibleCount = 4;
+<<<<<<< codex/improve-ui-design-and-responsiveness-lv3anu
   int rowStep = menuRowHeight() + 4;
   int totalHeight = visibleCount * rowStep;
   int startY = CY - totalHeight / 2 + rowStep/2;
 
   for (int i = 0; i < visibleCount; i++) {
     int y = startY + i * rowStep;
+=======
+  int totalHeight = visibleCount * ROW_H;
+  int startY = CY - totalHeight / 2 + ROW_H/2;
+
+  for (int i = 0; i < visibleCount; i++) {
+    int y = startY + i * ROW_H;
+>>>>>>> main
     drawMenuCardRow(y, i == menuIndex, items[i]);
   }
   drawMenuHint("Rotate • Press to enter");
@@ -538,11 +572,18 @@ void drawSettingsMenu() {
   int totalHeight = 4 * rowStep;
   int startY = CY - totalHeight / 2 + rowStep/2;
   for (int i=0; i<4; i++) {
+<<<<<<< codex/improve-ui-design-and-responsiveness-lv3anu
     int y = startY + i * rowStep;
     drawMenuCardRow(y, i == menuIndex, items[i]);
   }
   drawMenuHint("Rotate • Press to open");
   drawMenuScrollDots(4, menuIndex);
+=======
+    int y = startY + i * ROW_H;
+    drawMenuCardRow(y, i == menuIndex, items[i]);
+  }
+  drawMenuHint("Rotate • Press to open");
+>>>>>>> main
 }
 // ===== Settings: WiFi Info Screen =====
 void drawSettingsWiFi() {
