@@ -203,6 +203,83 @@ inline uint16_t uiAccent()    { return M5Dial.Display.color565(92, 169, 255); }
 inline uint16_t uiSuccess()   { return M5Dial.Display.color565(58, 212, 152); }
 inline uint16_t uiDanger()    { return M5Dial.Display.color565(255, 107, 129); }
 
+int menuRowHeight() {
+  return constrain(SCR_H / 9, 24, 32);
+}
+
+int menuVisibleSlots(int count) {
+  int usableTop = SAFE_MARGIN + 24;
+  int usableHeight = SCR_H - usableTop - SAFE_MARGIN;
+  int dynamicRows = usableHeight / (menuRowHeight() + 4);
+  int capped = constrain(dynamicRows, 3, 6);
+  return min(capped, count);
+}
+
+void drawBackdrop() {
+  for (int y = 0; y < SCR_H; y++) {
+    uint8_t r = map(y, 0, SCR_H, 24, 18);
+    uint8_t g = map(y, 0, SCR_H, 30, 22);
+    uint8_t b = map(y, 0, SCR_H, 43, 30);
+    M5Dial.Display.drawFastHLine(0, y, SCR_W, M5Dial.Display.color565(r, g, b));
+  }
+}
+
+String fitLabel(const String& value, int maxWidth) {
+  if (M5Dial.Display.textWidth(value) <= maxWidth) return value;
+  String out = value;
+  while (out.length() > 1 && M5Dial.Display.textWidth(out + "…") > maxWidth) {
+    out.remove(out.length() - 1);
+  }
+  return out + "…";
+}
+
+void drawMenuHint(const char* text) {
+  M5Dial.Display.setTextDatum(middle_center);
+  M5Dial.Display.setTextSize(1);
+  M5Dial.Display.setTextColor(uiTextMuted(), uiBg());
+  M5Dial.Display.drawString(text, CX, SCR_H - SAFE_MARGIN + 8);
+}
+
+void drawMenuScrollDots(int count, int selected) {
+  if (count <= 1) return;
+  int dots = min(count, 6);
+  int top = SAFE_MARGIN + 40;
+  int zone = SCR_H - (SAFE_MARGIN * 2) - 56;
+  int step = max(8, zone / max(1, dots - 1));
+  for (int i = 0; i < dots; i++) {
+    int mapped = map(i, 0, dots - 1, 0, count - 1);
+    bool active = abs(mapped - selected) <= (count / dots + 1);
+    int x = SCR_W - SAFE_MARGIN + 8;
+    int y = top + i * step;
+    M5Dial.Display.fillCircle(x, y, active ? 2 : 1, active ? uiAccent() : uiPanelSoft());
+  }
+}
+
+void drawMenuCardRow(int y, bool selected, const String& label, const String& rightText = "", uint16_t rightColor = 0) {
+  int rowH = menuRowHeight();
+  int rowW = SCR_W - SAFE_MARGIN * 2;
+  int rowX = SAFE_MARGIN;
+  uint16_t bg = selected ? uiPanelSoft() : uiPanel();
+  uint16_t border = selected ? uiAccent() : uiPanelSoft();
+
+  if (selected) {
+    M5Dial.Display.fillRoundRect(rowX - 2, y - rowH / 2 - 2, rowW + 4, rowH + 4, 10, M5Dial.Display.color565(22, 64, 104));
+  }
+  M5Dial.Display.fillRoundRect(rowX, y - rowH / 2, rowW, rowH, 9, bg);
+  M5Dial.Display.drawRoundRect(rowX, y - rowH / 2, rowW, rowH, 9, border);
+
+  M5Dial.Display.setTextDatum(middle_left);
+  M5Dial.Display.setTextSize(1);
+  M5Dial.Display.setTextColor(selected ? uiText() : uiTextMuted(), bg);
+  M5Dial.Display.drawString(label, rowX + 7, y);
+
+  if (rightText.length() > 0) {
+    M5Dial.Display.setTextDatum(middle_right);
+    M5Dial.Display.setTextColor(rightColor == 0 ? uiAccent() : rightColor, bg);
+    M5Dial.Display.drawString(rightText, rowX + rowW - 7, y);
+  }
+}
+
 // ===== MQTT log buffer =====
 const int MQTT_LOG_SIZE = 30;
 String mqttLog[MQTT_LOG_SIZE];
@@ -284,8 +361,9 @@ void drawHeader(const char* title) {
   int barW = SCR_W - SAFE_MARGIN*2;
   int barX = SAFE_MARGIN;
   int barY = SAFE_MARGIN - 10;
-  M5Dial.Display.fillRoundRect(barX, barY, barW, 24, 8, uiPanelSoft());
-  M5Dial.Display.drawRoundRect(barX, barY, barW, 24, 8, uiAccent());
+  M5Dial.Display.fillRoundRect(barX, barY, barW, 24, 10, uiPanelSoft());
+  M5Dial.Display.drawRoundRect(barX, barY, barW, 24, 10, uiAccent());
+  M5Dial.Display.fillCircle(barX + 10, barY + 12, 2, uiAccent());
   M5Dial.Display.setTextDatum(middle_center);
   M5Dial.Display.setTextSize(1);
   M5Dial.Display.setTextColor(uiText(), uiPanelSoft());
@@ -339,7 +417,7 @@ void drawColorScreen(Device* dev) {
 
 // ===== Scrollable Menus =====
 void drawScrollableMenu(Device* list, int count, int selected, const char* title, bool showBrightness) {
-  M5Dial.Display.fillScreen(uiBg());
+  drawBackdrop();
   drawHeader(title);
 
   if (count <= 0) {
@@ -349,78 +427,53 @@ void drawScrollableMenu(Device* list, int count, int selected, const char* title
     return;
   }
 
-  int visibleCount = min(5, count);
+  int visibleCount = menuVisibleSlots(count);
   int half = visibleCount / 2;
 
   int start = selected - half;
   if (start < 0) start = 0;
   if (start > count - visibleCount) start = count - visibleCount;
 
-  int totalHeight = visibleCount * ROW_H;
-  int startY = CY - totalHeight / 2 + ROW_H/2;
+  int rowStep = menuRowHeight() + 4;
+  int totalHeight = visibleCount * rowStep;
+  int startY = CY - totalHeight / 2 + rowStep/2;
 
   for (int i = 0; i < visibleCount; i++) {
     int idx = start + i;
-    int y = startY + i * ROW_H;
+    int y = startY + i * rowStep;
 
-    uint16_t bgColor = (idx == selected) ? uiPanelSoft() : uiBg();
-    uint16_t fgColor = (idx == selected) ? uiText() : uiTextMuted();
+    uint16_t stateColor = list[idx].state ? uiSuccess() : uiDanger();
+    String stateText = list[idx].state ? "ON" : "OFF";
 
-    if (idx == selected) {
-      M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, bgColor);
-      M5Dial.Display.drawRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiAccent());
-    }
-
-    // Name left
-    M5Dial.Display.setTextDatum(middle_left);
-    M5Dial.Display.setTextSize(1);
-    M5Dial.Display.setTextColor(fgColor, bgColor);
-    M5Dial.Display.drawString(list[idx].name, SAFE_MARGIN+4, y);
-
-    // State right
-    M5Dial.Display.setTextDatum(middle_right);
     if (list[idx].type == LIGHT && showBrightness) {
-      uint16_t stateColor = list[idx].state ? uiSuccess() : uiDanger();
-      M5Dial.Display.setTextColor(stateColor, bgColor);
-      M5Dial.Display.drawString(list[idx].state ? "ON" : "OFF", SCR_W - SAFE_MARGIN - 40, y);
-      if (list[idx].brightness > 0) {
-        M5Dial.Display.setTextColor(uiAccent(), bgColor);
-        M5Dial.Display.drawString(String(list[idx].brightness), SCR_W - SAFE_MARGIN - 4, y);
-      }
+      if (list[idx].brightness > 0) stateText += " " + String((list[idx].brightness * 100) / 255) + "%";
     } else if (list[idx].type == BLIND) {
-      uint16_t blindColor = list[idx].state ? uiSuccess() : uiDanger();
-      M5Dial.Display.setTextColor(blindColor, bgColor);
-      M5Dial.Display.drawString(list[idx].state ? "OPEN" : "CLOSED", SCR_W - SAFE_MARGIN - 4, y);
-    } else {
-      uint16_t stateColor = list[idx].state ? uiSuccess() : uiDanger();
-      M5Dial.Display.setTextColor(stateColor, bgColor);
-      M5Dial.Display.drawString(list[idx].state ? "ON" : "OFF", SCR_W - SAFE_MARGIN - 4, y);
+      stateText = list[idx].state ? "OPEN" : "CLOSED";
     }
+
+    int rightZone = 74;
+    int labelWidth = SCR_W - SAFE_MARGIN * 2 - rightZone;
+    drawMenuCardRow(y, idx == selected, fitLabel(list[idx].name, labelWidth), stateText, stateColor);
   }
+  drawMenuHint("Rotate • Press to open");
+  drawMenuScrollDots(count, selected);
 }
 // ===== Menus =====
 void drawCategories() {
   const char* items[] = {"Lights", "Switches", "Blinds", "Settings"};
-  M5Dial.Display.fillScreen(uiBg());
+  drawBackdrop();
   drawHeader("Categories");
 
-  int totalHeight = 4 * ROW_H;
-  int startY = CY - totalHeight / 2 + ROW_H/2;
+  int visibleCount = 4;
+  int rowStep = menuRowHeight() + 4;
+  int totalHeight = visibleCount * rowStep;
+  int startY = CY - totalHeight / 2 + rowStep/2;
 
-  for (int i = 0; i < 4; i++) {
-    int y = startY + i * ROW_H;
-    if (i == menuIndex) {
-      M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiPanelSoft());
-      M5Dial.Display.drawRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiAccent());
-      M5Dial.Display.setTextDatum(middle_center);
-      M5Dial.Display.setTextColor(uiText());
-      M5Dial.Display.drawString(items[i], CX, y);
-    } else {
-      M5Dial.Display.setTextDatum(middle_center);
-      M5Dial.Display.setTextColor(uiTextMuted());
-      M5Dial.Display.drawString(items[i], CX, y);
-    }
+  for (int i = 0; i < visibleCount; i++) {
+    int y = startY + i * rowStep;
+    drawMenuCardRow(y, i == menuIndex, items[i]);
   }
+  drawMenuHint("Rotate • Press to enter");
 }
 /// Note: lights show brightness
 void drawLightsMenu()   { drawScrollableMenu(lights, numLights, menuIndex, "Lights", true); }
@@ -429,7 +482,7 @@ void drawLightsMenu()   { drawScrollableMenu(lights, numLights, menuIndex, "Ligh
 
 /// Note: lights show brightness
 void drawSwitchesMenu() {
-  M5Dial.Display.fillScreen(uiBg());
+  drawBackdrop();
   drawHeader("Switches");
 
   int count = numSwitches;
@@ -440,48 +493,35 @@ void drawSwitchesMenu() {
     return;
   }
 
-  int visibleCount = min(5, count);
+  int visibleCount = menuVisibleSlots(count);
   int half = visibleCount / 2;
 
   int start = menuIndex - half;
   if (start < 0) start = 0;
   if (start > count - visibleCount) start = count - visibleCount;
 
-  // spacing between rows
-  int spacing = 6;  
-  int itemHeight = ROW_H - spacing;
-  int totalHeight = visibleCount * (itemHeight + spacing);
-  int startY = CY - totalHeight / 2 + itemHeight / 2;
+  int rowStep = menuRowHeight() + 4;
+  int totalHeight = visibleCount * rowStep;
+  int startY = CY - totalHeight / 2 + rowStep / 2;
 
   for (int i = 0; i < visibleCount; i++) {
     int idx = start + i;
-    int y = startY + i * (itemHeight + spacing);
+    int y = startY + i * rowStep;
 
     bool isSelected = (idx == menuIndex);
     bool state = switches[idx].state;
 
-    // pastel green / pastel red
-    uint16_t colorOn  = M5Dial.Display.color565(37, 94, 75);
-    uint16_t colorOff = M5Dial.Display.color565(105, 48, 66);
-    uint16_t bgColor  = state ? colorOn : colorOff;
-
-    // draw outline first if selected
-    if (isSelected) {
-      M5Dial.Display.fillRoundRect(SAFE_MARGIN - 2, y - itemHeight/2 - 2,
-                                   SCR_W - SAFE_MARGIN*2 + 4, itemHeight + 4, 10,
-                                   uiAccent());
-    }
-
-    // draw main colored button
-    M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - itemHeight/2,
-                                 SCR_W - SAFE_MARGIN*2, itemHeight, 8, bgColor);
-
-    // text centered
-    M5Dial.Display.setTextDatum(middle_center);
-    M5Dial.Display.setTextSize(1);
-    M5Dial.Display.setTextColor(uiText(), bgColor);
-    M5Dial.Display.drawString(switches[idx].name, CX, y);
+    int rightZone = 60;
+    int labelWidth = SCR_W - SAFE_MARGIN * 2 - rightZone;
+    drawMenuCardRow(
+      y,
+      isSelected,
+      fitLabel(switches[idx].name, labelWidth),
+      state ? "ON" : "OFF",
+      state ? uiSuccess() : uiDanger()
+    );
   }
+  drawMenuHint("Rotate • Press to toggle");
 }
 
 
@@ -491,25 +531,18 @@ void drawBlindsMenu()   { drawScrollableMenu(blinds, numBlinds, menuIndex, "Blin
 void drawSettingsMenu() {
   const char* items[] = {"WiFi Info", "MQTT Info", "Weather Debug", "Display Options"};
 
-  M5Dial.Display.fillScreen(uiBg());
+  drawBackdrop();
   drawHeader("Settings");
 
-  int totalHeight = 4 * ROW_H;
-  int startY = CY - totalHeight / 2 + ROW_H/2;
+  int rowStep = menuRowHeight() + 4;
+  int totalHeight = 4 * rowStep;
+  int startY = CY - totalHeight / 2 + rowStep/2;
   for (int i=0; i<4; i++) {
-    int y = startY + i * ROW_H;
-    if (i == menuIndex) {
-      M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiPanelSoft());
-      M5Dial.Display.drawRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiAccent());
-      M5Dial.Display.setTextDatum(middle_center);
-      M5Dial.Display.setTextColor(uiText());
-      M5Dial.Display.drawString(items[i], CX, y);
-    } else {
-      M5Dial.Display.setTextDatum(middle_center);
-      M5Dial.Display.setTextColor(uiTextMuted());
-      M5Dial.Display.drawString(items[i], CX, y);
-    }
+    int y = startY + i * rowStep;
+    drawMenuCardRow(y, i == menuIndex, items[i]);
   }
+  drawMenuHint("Rotate • Press to open");
+  drawMenuScrollDots(4, menuIndex);
 }
 // ===== Settings: WiFi Info Screen =====
 void drawSettingsWiFi() {
