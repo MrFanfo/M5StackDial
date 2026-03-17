@@ -193,6 +193,16 @@ int  SCR_W, SCR_H, CX, CY;
 const int SAFE_MARGIN = 32;
 const int ROW_H       = 28;
 
+// ===== UI Theme =====
+inline uint16_t uiBg()        { return M5Dial.Display.color565(18, 22, 30); }
+inline uint16_t uiPanel()     { return M5Dial.Display.color565(28, 34, 46); }
+inline uint16_t uiPanelSoft() { return M5Dial.Display.color565(38, 46, 62); }
+inline uint16_t uiText()      { return M5Dial.Display.color565(230, 236, 247); }
+inline uint16_t uiTextMuted() { return M5Dial.Display.color565(150, 162, 182); }
+inline uint16_t uiAccent()    { return M5Dial.Display.color565(92, 169, 255); }
+inline uint16_t uiSuccess()   { return M5Dial.Display.color565(58, 212, 152); }
+inline uint16_t uiDanger()    { return M5Dial.Display.color565(255, 107, 129); }
+
 // ===== MQTT log buffer =====
 const int MQTT_LOG_SIZE = 30;
 String mqttLog[MQTT_LOG_SIZE];
@@ -274,10 +284,11 @@ void drawHeader(const char* title) {
   int barW = SCR_W - SAFE_MARGIN*2;
   int barX = SAFE_MARGIN;
   int barY = SAFE_MARGIN - 10;
-  M5Dial.Display.fillRoundRect(barX, barY, barW, 24, 6, M5Dial.Display.color565(200, 200, 200));
+  M5Dial.Display.fillRoundRect(barX, barY, barW, 24, 8, uiPanelSoft());
+  M5Dial.Display.drawRoundRect(barX, barY, barW, 24, 8, uiAccent());
   M5Dial.Display.setTextDatum(middle_center);
   M5Dial.Display.setTextSize(1);
-  M5Dial.Display.setTextColor(M5Dial.Display.color565(40, 40, 40), M5Dial.Display.color565(200, 200, 200));
+  M5Dial.Display.setTextColor(uiText(), uiPanelSoft());
   M5Dial.Display.drawString(title, CX, barY + 12);
   M5Dial.Display.setTextSize(2);
 }
@@ -328,12 +339,12 @@ void drawColorScreen(Device* dev) {
 
 // ===== Scrollable Menus =====
 void drawScrollableMenu(Device* list, int count, int selected, const char* title, bool showBrightness) {
-  M5Dial.Display.fillScreen(M5Dial.Display.color565(230, 232, 235));
+  M5Dial.Display.fillScreen(uiBg());
   drawHeader(title);
 
   if (count <= 0) {
     M5Dial.Display.setTextDatum(middle_center);
-    M5Dial.Display.setTextColor(M5Dial.Display.color565(100,100,100));
+    M5Dial.Display.setTextColor(uiTextMuted());
     M5Dial.Display.drawString("(none)", CX, CY);
     return;
   }
@@ -352,11 +363,12 @@ void drawScrollableMenu(Device* list, int count, int selected, const char* title
     int idx = start + i;
     int y = startY + i * ROW_H;
 
-    uint16_t bgColor = (idx == selected) ? M5Dial.Display.color565(200,200,200) : M5Dial.Display.color565(230,232,235);
-    uint16_t fgColor = (idx == selected) ? M5Dial.Display.color565(40,40,40)    : M5Dial.Display.color565(80,80,80);
+    uint16_t bgColor = (idx == selected) ? uiPanelSoft() : uiBg();
+    uint16_t fgColor = (idx == selected) ? uiText() : uiTextMuted();
 
     if (idx == selected) {
-      M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 8, bgColor);
+      M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, bgColor);
+      M5Dial.Display.drawRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiAccent());
     }
 
     // Name left
@@ -368,19 +380,19 @@ void drawScrollableMenu(Device* list, int count, int selected, const char* title
     // State right
     M5Dial.Display.setTextDatum(middle_right);
     if (list[idx].type == LIGHT && showBrightness) {
-      uint16_t stateColor = list[idx].state ? M5Dial.Display.color565(0,200,0) : M5Dial.Display.color565(200,0,0);
+      uint16_t stateColor = list[idx].state ? uiSuccess() : uiDanger();
       M5Dial.Display.setTextColor(stateColor, bgColor);
       M5Dial.Display.drawString(list[idx].state ? "ON" : "OFF", SCR_W - SAFE_MARGIN - 40, y);
       if (list[idx].brightness > 0) {
-        M5Dial.Display.setTextColor(M5Dial.Display.color565(0,0,200), bgColor);
+        M5Dial.Display.setTextColor(uiAccent(), bgColor);
         M5Dial.Display.drawString(String(list[idx].brightness), SCR_W - SAFE_MARGIN - 4, y);
       }
     } else if (list[idx].type == BLIND) {
-      uint16_t blindColor = list[idx].state ? M5Dial.Display.color565(0,200,0) : M5Dial.Display.color565(200,0,0);
+      uint16_t blindColor = list[idx].state ? uiSuccess() : uiDanger();
       M5Dial.Display.setTextColor(blindColor, bgColor);
       M5Dial.Display.drawString(list[idx].state ? "OPEN" : "CLOSED", SCR_W - SAFE_MARGIN - 4, y);
     } else {
-      uint16_t stateColor = list[idx].state ? M5Dial.Display.color565(0,200,0) : M5Dial.Display.color565(200,0,0);
+      uint16_t stateColor = list[idx].state ? uiSuccess() : uiDanger();
       M5Dial.Display.setTextColor(stateColor, bgColor);
       M5Dial.Display.drawString(list[idx].state ? "ON" : "OFF", SCR_W - SAFE_MARGIN - 4, y);
     }
@@ -389,7 +401,7 @@ void drawScrollableMenu(Device* list, int count, int selected, const char* title
 // ===== Menus =====
 void drawCategories() {
   const char* items[] = {"Lights", "Switches", "Blinds", "Settings"};
-  M5Dial.Display.fillScreen(M5Dial.Display.color565(230, 232, 235));
+  M5Dial.Display.fillScreen(uiBg());
   drawHeader("Categories");
 
   int totalHeight = 4 * ROW_H;
@@ -398,13 +410,14 @@ void drawCategories() {
   for (int i = 0; i < 4; i++) {
     int y = startY + i * ROW_H;
     if (i == menuIndex) {
-      M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 8, M5Dial.Display.color565(200,200,200));
+      M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiPanelSoft());
+      M5Dial.Display.drawRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiAccent());
       M5Dial.Display.setTextDatum(middle_center);
-      M5Dial.Display.setTextColor(M5Dial.Display.color565(40,40,40));
+      M5Dial.Display.setTextColor(uiText());
       M5Dial.Display.drawString(items[i], CX, y);
     } else {
       M5Dial.Display.setTextDatum(middle_center);
-      M5Dial.Display.setTextColor(M5Dial.Display.color565(80,80,80));
+      M5Dial.Display.setTextColor(uiTextMuted());
       M5Dial.Display.drawString(items[i], CX, y);
     }
   }
@@ -416,7 +429,7 @@ void drawLightsMenu()   { drawScrollableMenu(lights, numLights, menuIndex, "Ligh
 
 /// Note: lights show brightness
 void drawSwitchesMenu() {
-  M5Dial.Display.fillScreen(M5Dial.Display.color565(240, 242, 245));  // light neutral background
+  M5Dial.Display.fillScreen(uiBg());
   drawHeader("Switches");
 
   int count = numSwitches;
@@ -448,15 +461,15 @@ void drawSwitchesMenu() {
     bool state = switches[idx].state;
 
     // pastel green / pastel red
-    uint16_t colorOn  = M5Dial.Display.color565(180, 255, 180);
-    uint16_t colorOff = M5Dial.Display.color565(255, 180, 180);
+    uint16_t colorOn  = M5Dial.Display.color565(37, 94, 75);
+    uint16_t colorOff = M5Dial.Display.color565(105, 48, 66);
     uint16_t bgColor  = state ? colorOn : colorOff;
 
     // draw outline first if selected
     if (isSelected) {
       M5Dial.Display.fillRoundRect(SAFE_MARGIN - 2, y - itemHeight/2 - 2,
                                    SCR_W - SAFE_MARGIN*2 + 4, itemHeight + 4, 10,
-                                   M5Dial.Display.color565(0, 0, 0));  // black outline
+                                   uiAccent());
     }
 
     // draw main colored button
@@ -466,7 +479,7 @@ void drawSwitchesMenu() {
     // text centered
     M5Dial.Display.setTextDatum(middle_center);
     M5Dial.Display.setTextSize(1);
-    M5Dial.Display.setTextColor(M5Dial.Display.color565(40,40,40), bgColor);
+    M5Dial.Display.setTextColor(uiText(), bgColor);
     M5Dial.Display.drawString(switches[idx].name, CX, y);
   }
 }
@@ -478,7 +491,7 @@ void drawBlindsMenu()   { drawScrollableMenu(blinds, numBlinds, menuIndex, "Blin
 void drawSettingsMenu() {
   const char* items[] = {"WiFi Info", "MQTT Info", "Weather Debug", "Display Options"};
 
-  M5Dial.Display.fillScreen(M5Dial.Display.color565(230,232,235));
+  M5Dial.Display.fillScreen(uiBg());
   drawHeader("Settings");
 
   int totalHeight = 4 * ROW_H;
@@ -486,20 +499,21 @@ void drawSettingsMenu() {
   for (int i=0; i<4; i++) {
     int y = startY + i * ROW_H;
     if (i == menuIndex) {
-      M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 8, M5Dial.Display.color565(200,200,200));
+      M5Dial.Display.fillRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiPanelSoft());
+      M5Dial.Display.drawRoundRect(SAFE_MARGIN, y - 14, SCR_W - SAFE_MARGIN*2, 28, 10, uiAccent());
       M5Dial.Display.setTextDatum(middle_center);
-      M5Dial.Display.setTextColor(M5Dial.Display.color565(40,40,40));
+      M5Dial.Display.setTextColor(uiText());
       M5Dial.Display.drawString(items[i], CX, y);
     } else {
       M5Dial.Display.setTextDatum(middle_center);
-      M5Dial.Display.setTextColor(M5Dial.Display.color565(80,80,80));
+      M5Dial.Display.setTextColor(uiTextMuted());
       M5Dial.Display.drawString(items[i], CX, y);
     }
   }
 }
 // ===== Settings: WiFi Info Screen =====
 void drawSettingsWiFi() {
-  M5Dial.Display.fillScreen(M5Dial.Display.color565(230,232,235));
+  M5Dial.Display.fillScreen(uiBg());
   drawHeader("WiFi Status");
 
   String ssid = (WiFi.status() == WL_CONNECTED) ? WiFi.SSID() : "(offline)";
@@ -517,7 +531,7 @@ void drawSettingsWiFi() {
 
   M5Dial.Display.setTextDatum(middle_center);
   M5Dial.Display.setTextSize(1);
-  M5Dial.Display.setTextColor(M5Dial.Display.color565(60,60,60));
+  M5Dial.Display.setTextColor(uiTextMuted());
 
   int y = CY - 70;
   M5Dial.Display.drawString("SSID: " + ssid, CX, y); y += 20;
@@ -526,16 +540,15 @@ void drawSettingsWiFi() {
   M5Dial.Display.drawString("Public IP: " + publicIP, CX, y); y += 20;
 
   uint16_t mqttColor = mqtt.connected() ? 
-    M5Dial.Display.color565(0,180,0) : 
-    M5Dial.Display.color565(200,0,0);
-  M5Dial.Display.setTextColor(mqttColor, M5Dial.Display.color565(230,232,235));
+    uiSuccess() : uiDanger();
+  M5Dial.Display.setTextColor(mqttColor, uiBg());
   M5Dial.Display.drawString("MQTT: " + mqttStatus, CX, y); y += 20;
 
-  M5Dial.Display.setTextColor(M5Dial.Display.color565(60,60,60));
+  M5Dial.Display.setTextColor(uiTextMuted());
   M5Dial.Display.drawString("Uptime: " + String(uptimeBuf), CX, y); y += 20;
 
   // OTA info
-  M5Dial.Display.setTextColor(M5Dial.Display.color565(100,100,200));
+  M5Dial.Display.setTextColor(uiAccent());
   M5Dial.Display.drawString("OTA: " + otaAddress, CX, y);
 }
 
@@ -653,7 +666,7 @@ void drawSettingsMQTT() {
 }
 // ===== Display Options Screen =====
 void drawSettingsDisplay() {
-  M5Dial.Display.fillScreen(M5Dial.Display.color565(240, 242, 245));  // light background
+  M5Dial.Display.fillScreen(uiBg());
   drawHeader("Display Options");
 
   // define options list
@@ -682,20 +695,20 @@ void drawSettingsDisplay() {
     bool isSelected = (idx == menuIndex);
 
     // pastel colors
-    uint16_t baseColor = M5Dial.Display.color565(220, 225, 230);
+    uint16_t baseColor = uiPanel();
     uint16_t bgColor = baseColor;
 
     if (idx == 0) {
       bgColor = enableClockOnIdle
-                ? M5Dial.Display.color565(180, 255, 180)  // green if on
-                : M5Dial.Display.color565(255, 180, 180); // red if off
+                ? M5Dial.Display.color565(37, 94, 75)
+                : M5Dial.Display.color565(105, 48, 66);
     }
 
     // outline if selected
     if (isSelected) {
       M5Dial.Display.fillRoundRect(SAFE_MARGIN - 2, y - itemHeight / 2 - 2,
                                    SCR_W - SAFE_MARGIN * 2 + 4, itemHeight + 4, 10,
-                                   M5Dial.Display.color565(0, 0, 0));
+                                   uiAccent());
     }
 
     // background
@@ -705,7 +718,7 @@ void drawSettingsDisplay() {
     // text
     M5Dial.Display.setTextDatum(middle_center);
     M5Dial.Display.setTextSize(1);
-    M5Dial.Display.setTextColor(M5Dial.Display.color565(40, 40, 40), bgColor);
+    M5Dial.Display.setTextColor(uiText(), bgColor);
     M5Dial.Display.drawString(items[idx], CX, y);
   }
 }
@@ -797,7 +810,7 @@ void drawSettingsWeatherDebug() {
 
 // ===== Brightness adjustment screen =====
 void drawSettingsBrightness() {
-  M5Dial.Display.fillScreen(M5Dial.Display.color565(230,232,235));
+  M5Dial.Display.fillScreen(uiBg());
   drawHeader("Brightness");
 
   // Bar dimensions
@@ -816,15 +829,14 @@ void drawSettingsBrightness() {
   // Indicator position
   int pos = map(displayBrightness, 0, 255, 0, barW);
   M5Dial.Display.drawLine(barX + pos, barY - 5, barX + pos, barY + barH + 5,
-                          M5Dial.Display.color565(0, 0, 0));
+                          uiAccent());
 
   // Value text
   char buf[32];
   snprintf(buf, sizeof(buf), "%d / 255", displayBrightness);
   M5Dial.Display.setTextDatum(middle_center);
   M5Dial.Display.setTextSize(2);
-  M5Dial.Display.setTextColor(M5Dial.Display.color565(40,40,40),
-                              M5Dial.Display.color565(230,232,235));
+  M5Dial.Display.setTextColor(uiText(), uiBg());
   M5Dial.Display.drawString(buf, CX, CY + 40);
 
   M5Dial.Display.setTextSize(1);
@@ -833,7 +845,7 @@ void drawSettingsBrightness() {
 
 // ===== Control Screen =====
 void drawControlScreen(Device* dev) {
-  M5Dial.Display.fillScreen(M5Dial.Display.color565(230,232,235));
+  M5Dial.Display.fillScreen(uiBg());
   drawHeader(dev->name);
 
   if (dev->type == LIGHT) {
@@ -850,7 +862,7 @@ void drawControlScreen(Device* dev) {
       int y0 = CY + sin(rad) * r_inner;
       int x1 = CX + cos(rad) * r_outer;
       int y1 = CY + sin(rad) * r_outer;
-      M5Dial.Display.drawLine(x0, y0, x1, y1, M5Dial.Display.color565(220,220,220));
+      M5Dial.Display.drawLine(x0, y0, x1, y1, uiPanelSoft());
     }
     int r_fill_outer = r_outer;
     int r_fill_inner = r_inner - 2;
@@ -860,26 +872,26 @@ void drawControlScreen(Device* dev) {
       int y0 = CY + sin(rad) * r_fill_inner;
       int x1 = CX + cos(rad) * r_fill_outer;
       int y1 = CY + sin(rad) * r_fill_outer;
-      M5Dial.Display.drawLine(x0, y0, x1, y1, M5Dial.Display.color565(60,60,60));
+      M5Dial.Display.drawLine(x0, y0, x1, y1, uiAccent());
     }
 
     M5Dial.Display.setTextSize(3);
-    uint16_t onColor = dev->state ? M5Dial.Display.color565(0,200,0) : M5Dial.Display.color565(200,0,0);
+    uint16_t onColor = dev->state ? uiSuccess() : uiDanger();
     String onoffStr = dev->state ? "ON" : "OFF";
     M5Dial.Display.setTextDatum(middle_center);
-    M5Dial.Display.setTextColor(onColor, M5Dial.Display.color565(230,232,235));
+    M5Dial.Display.setTextColor(onColor, uiBg());
     M5Dial.Display.drawString(onoffStr, CX, CY + 10);
     M5Dial.Display.setTextSize(2);
   } else if (dev->type == BLIND) {
-    uint16_t blindColor = dev->state ? M5Dial.Display.color565(0,200,0) : M5Dial.Display.color565(200,0,0);
+    uint16_t blindColor = dev->state ? uiSuccess() : uiDanger();
     M5Dial.Display.setTextSize(3);
     M5Dial.Display.setTextDatum(middle_center);
-    M5Dial.Display.setTextColor(blindColor, M5Dial.Display.color565(230,232,235));
+    M5Dial.Display.setTextColor(blindColor, uiBg());
     M5Dial.Display.drawString(dev->state ? "OPEN" : "CLOSED", CX, CY);
     M5Dial.Display.setTextSize(2);
   } else {
     M5Dial.Display.setTextDatum(middle_center);
-    M5Dial.Display.setTextColor(M5Dial.Display.color565(40,40,40));
+    M5Dial.Display.setTextColor(uiText());
     M5Dial.Display.drawString("Press to toggle", CX, CY);
   }
 }
